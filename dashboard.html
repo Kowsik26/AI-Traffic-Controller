@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic AI | 4-Way Intersection Control</title>
+    <style>
+        /* ALL YOUR EXISTING CSS STAYS THE SAME */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0f1e;
+            color: #e0e5f0;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 10s infinite;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(1); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-100vh) scale(0); opacity: 0; }
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            background: rgba(10, 20, 30, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 30px;
+            padding: 25px 35px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 255, 0.1);
+            animation: glowPulse 3s infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 255, 0.2); }
+            50% { box-shadow: 0 15px 45px rgba(0, 255, 255, 0.3), 0 0 0 2px rgba(0, 255, 255, 0.4); }
+        }
+
+        .header-left h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .header-left p {
+            color: #8a9bb5;
+            font-size: 0.95rem;
+            margin-top: 5px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 15px;
+        }
+
+        .ai-badge {
+            background: linear-gradient(135deg, #0066ff, #00ccff);
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.8); }
+        }
+
+        .status-badge {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr 320px;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .glass-panel {
+            background: rgba(15, 25, 35, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 25px;
+            padding: 20px;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(0, 255, 255, 0.5);
+            box-shadow: 0 15px 40px rgba(0, 255, 255, 0.2);
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00ffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 50, 80, 0.5), rgba(0, 20, 40, 0.8));
+            border-radius: 15px;
+            padding: 20px 15px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: #00ffff;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #8a9bb5;
+            margin-top: 5px;
+        }
+
+        .emergency-section {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.1), rgba(200, 0, 0, 0.2));
+            border: 2px solid #ff3333;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+            animation: emergencyGlow 2s infinite;
+        }
+
+        @keyframes emergencyGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 0, 0, 0.3); }
+            50% { box-shadow: 0 0 50px rgba(255, 0, 0, 0.6); }
+        }
+
+        .emergency-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ff6666;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .emergency-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .emergency-select {
+            flex: 1;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #ff3333;
+            border-radius: 40px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .emergency-select:hover {
+            background: rgba(255, 0, 0, 0.2);
+            border-color: #ff6666;
+        }
+
+        .emergency-select option {
+            background: #1a1a2e;
+            color: white;
+        }
+
+        .btn-emergency {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+            animation: emergencyPulse 1s infinite;
+            border: 2px solid #ff9999;
+        }
+
+        @keyframes emergencyPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 0, 0, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(255, 0, 0, 0.8); }
+        }
+
+        .btn-emergency:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, #ff3333, #ff0000);
+        }
+
+        .btn-emergency:active {
+            transform: scale(0.95);
+        }
+
+        .emergency-active {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emergency-active::after {
+            content: '🚨';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            opacity: 0.1;
+            pointer-events: none;
+            animation: emergencyOverlay 1s infinite;
+        }
+
+        @keyframes emergencyOverlay {
+            0%, 100% { opacity: 0.1; }
+            50% { opacity: 0.2; }
+        }
+
+        .density-item {
+            margin-bottom: 15px;
+        }
+
+        .density-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            color: #b0c4de;
+        }
+
+        .density-bar-container {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .density-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .density-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .bar-north { background: linear-gradient(90deg, #4facfe, #00f2fe); }
+        .bar-east { background: linear-gradient(90deg, #43e97b, #38f9d7); }
+        .bar-south { background: linear-gradient(90deg, #fa709a, #fee140); }
+        .bar-west { background: linear-gradient(90deg, #a18cd1, #fbc2eb); }
+
+        .intersection-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            background: #0f1a2b;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.3), inset 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        .road {
+            position: absolute;
+            background: #1e2a3a;
+            border: 2px solid #2a3a4a;
+        }
+
+        .road-horizontal {
+            width: 100%;
+            height: 120px;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: inset 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+
+        .road-vertical {
+            width: 120px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: inset 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+
+        .lane-marker {
+            position: absolute;
+            background: repeating-linear-gradient(
+                90deg,
+                #4a5a6a 0px,
+                #4a5a6a 20px,
+                transparent 20px,
+                transparent 40px
+            );
+        }
+
+        .lane-horizontal {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .lane-vertical {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: repeating-linear-gradient(
+                180deg,
+                #4a5a6a 0px,
+                #4a5a6a 20px,
+                transparent 20px,
+                transparent 40px
+            );
+        }
+
+        .intersection-center {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: #1a2a3a;
+            border: 3px solid #00ffff;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            animation: centerGlow 3s infinite;
+        }
+
+        @keyframes centerGlow {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.5); }
+            50% { box-shadow: 0 0 60px rgba(0, 255, 255, 0.8); }
+        }
+
+        .traffic-light {
+            position: absolute;
+            width: 35px;
+            height: 100px;
+            background: #111;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            padding: 8px 0;
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            border: 2px solid #333;
+        }
+
+        .light {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .light::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .light.red.active {
+            background: #ff0055;
+            box-shadow: 0 0 30px #ff0055;
+        }
+
+        .light.yellow.active {
+            background: #ffaa00;
+            box-shadow: 0 0 30px #ffaa00;
+        }
+
+        .light.green.active {
+            background: #00ff88;
+            box-shadow: 0 0 30px #00ff88;
+        }
+
+        .light-north { top: 160px; left: 50%; transform: translateX(-50%); }
+        .light-east { top: 50%; right: 160px; transform: translateY(-50%); }
+        .light-south { bottom: 160px; left: 50%; transform: translateX(-50%); }
+        .light-west { top: 50%; left: 160px; transform: translateY(-50%); }
+
+        .road-label {
+            position: absolute;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 0 15px #00ffff;
+            z-index: 6;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+        }
+
+        .label-north { top: 30px; left: 50%; transform: translateX(-50%); }
+        .label-east { top: 50%; right: 30px; transform: translateY(-50%); }
+        .label-south { bottom: 30px; left: 50%; transform: translateX(-50%); }
+        .label-west { top: 50%; left: 30px; transform: translateY(-50%); }
+
+        .timer {
+            position: absolute;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+            z-index: 7;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 15px;
+            border-radius: 30px;
+            border: 2px solid #00ffff;
+            animation: timerPulse 1s infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .timer-north { top: 120px; left: 50%; transform: translateX(-50%); }
+        .timer-east { top: 50%; right: 120px; transform: translateY(-50%); }
+        .timer-south { bottom: 120px; left: 50%; transform: translateX(-50%); }
+        .timer-west { top: 50%; left: 120px; transform: translateY(-50%); }
+
+        .vehicle {
+            position: absolute;
+            border-radius: 8px;
+            z-index: 8;
+            transition: all 0.1s linear;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.5));
+        }
+
+        .vehicle::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .vehicle:hover::after {
+            opacity: 1;
+        }
+
+        .car { 
+            width: 40px; 
+            height: 20px; 
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            border-radius: 10px 10px 5px 5px;
+        }
+        
+        .truck { 
+            width: 55px; 
+            height: 25px; 
+            background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+            border-radius: 12px 12px 6px 6px;
+        }
+        
+        .bus { 
+            width: 65px; 
+            height: 28px; 
+            background: linear-gradient(135deg, #fa709a, #fee140);
+            border-radius: 14px 14px 7px 7px;
+        }
+
+        .emergency-vehicle {
+            background: linear-gradient(135deg, #ff0000, #ff6666) !important;
+            border: 3px solid #ffff00;
+            animation: emergencyFlash 0.5s infinite;
+            z-index: 20;
+        }
+
+        @keyframes emergencyFlash {
+            0%, 100% { opacity: 1; box-shadow: 0 0 30px #ff0000; }
+            50% { opacity: 0.7; box-shadow: 0 0 60px #ffff00; }
+        }
+
+        .direction-indicator {
+            position: absolute;
+            font-size: 0.9rem;
+            color: #00ffff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 3px 8px;
+            border-radius: 15px;
+            border: 1px solid #00ffff;
+            z-index: 9;
+            animation: fadeInOut 1.5s infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #0066ff, #00ccff);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+        }
+
+        .btn-pause {
+            background: linear-gradient(135deg, #ff6b6b, #ee5253);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #4b6cb7, #182848);
+        }
+
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0c4de;
+            font-size: 0.95rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 40px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 20px 30px;
+            background: rgba(0, 20, 40, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 6px solid #00ffff;
+            border-radius: 15px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transform: translateX(400px);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success { border-left-color: #00ff88; }
+        .notification.warning { border-left-color: #ffaa00; }
+        .notification.error { border-left-color: #ff0055; }
+
+        .road-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .road-stat-item {
+            background: rgba(0, 50, 80, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .road-stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #00ffff;
+        }
+
+        .road-stat-label {
+            font-size: 0.8rem;
+            color: #8a9bb5;
+        }
+
+        .cycle-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 40px;
+        }
+
+        .cycle-light {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.3s;
+        }
+
+        .cycle-light.active {
+            background: #00ffff;
+            box-shadow: 0 0 20px #00ffff;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #8a9bb5;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(0, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="particles"></div>
+
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>🚦 Smart Traffic AI · 4-Way Intersection</h1>
+                <p>Real-time AI detection • Clockwise flow • Emergency priority</p>
+            </div>
+            <div class="header-right">
+                <div class="ai-badge">
+                    <span>🤖 AI ACTIVE</span>
+                </div>
+                <div class="status-badge">
+                    <span class="dot" id="statusDot"></span>
+                    <span id="connectionStatus">Connecting to Backend...</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="glass-panel">
+                <div class="panel-title">
+                    <span>🎮</span> Control Center
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="snapshotTime">--:--</div>
+                        <div class="stat-label">Snapshot Captured</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="activeRoad">--</div>
+                        <div class="stat-label">Active Road</div>
+                    </div>
+                </div>
+
+                <div class="panel-title" style="margin-top: 15px;">
+                    <span>📸</span> Captured Snapshot Values
+                </div>
+
+                <div class="road-stats">
+                    <div class="road-stat-item">
+                        <div class="road-stat-value" id="snapshotNorth">0</div>
+                        <div class="road-stat-label">North</div>
+                    </div>
+                    <div class="road-stat-item">
+                        <div class="road-stat-value" id="snapshotEast">0</div>
+                        <div class="road-stat-label">East</div>
+                    </div>
+                    <div class="road-stat-item">
+                        <div class="road-stat-value" id="snapshotSouth">0</div>
+                        <div class="road-stat-label">South</div>
+                    </div>
+                    <div class="road-stat-item">
+                        <div class="road-stat-value" id="snapshotWest">0</div>
+                        <div class="road-stat-label">West</div>
+                    </div>
+                </div>
+
+                <div class="emergency-section">
+                    <div class="emergency-title">
+                        <span>🚨 EMERGENCY PRIORITY</span>
+                    </div>
+                    <div class="emergency-controls">
+                        <select class="emergency-select" id="emergencyRoad">
+                            <option value="north">North Road</option>
+                            <option value="east">East Road</option>
+                            <option value="south">South Road</option>
+                            <option value="west">West Road</option>
+                        </select>
+                        <button class="btn-emergency" onclick="triggerEmergency()">
+                            <span>🚑</span> ACTIVATE
+                        </button>
+                    </div>
+                    <div style="margin-top: 15px; font-size: 0.9rem; color: #ff9999; text-align: center;">
+                        ⚡ Emergency gets GREEN • All other roads RED
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin: 25px 0;">
+                    <button class="btn btn-start" onclick="captureAndStart()" id="startBtn">
+                        ▶️ CAPTURE & START
+                    </button>
+                    <button class="btn btn-pause" onclick="pauseSimulation()" id="pauseBtn">
+                        ⏸️ PAUSE
+                    </button>
+                    <button class="btn btn-reset" onclick="resetSimulation()" id="resetBtn">
+                        🔄 RESET
+                    </button>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Simulation Speed</label>
+                    <input type="range" id="simSpeed" min="1" max="3" value="1" step="0.1" class="input-field" style="padding: 0;">
+                </div>
+
+                <div class="cycle-indicator">
+                    <span>Clockwise Flow:</span>
+                    <div class="cycle-light" id="cycleN"></div>
+                    <span>N</span>
+                    <div class="cycle-light" id="cycleE"></div>
+                    <span>E</span>
+                    <div class="cycle-light" id="cycleS"></div>
+                    <span>S</span>
+                    <div class="cycle-light" id="cycleW"></div>
+                    <span>W</span>
+                </div>
+            </div>
+
+            <div class="glass-panel" style="padding: 15px;">
+                <div class="intersection-container" id="intersection">
+                    <div class="road road-horizontal"></div>
+                    <div class="road road-vertical"></div>
+                    
+                    <div class="lane-marker lane-horizontal"></div>
+                    <div class="lane-marker lane-vertical"></div>
+                    
+                    <div class="intersection-center"></div>
+                    
+                    <div class="road-label label-north">NORTH</div>
+                    <div class="road-label label-east">EAST</div>
+                    <div class="road-label label-south">SOUTH</div>
+                    <div class="road-label label-west">WEST</div>
+                    
+                    <div class="traffic-light light-north" id="northLight">
+                        <div class="light red" id="northRed"></div>
+                        <div class="light yellow" id="northYellow"></div>
+                        <div class="light green" id="northGreen"></div>
+                    </div>
+                    
+                    <div class="traffic-light light-east" id="eastLight">
+                        <div class="light red" id="eastRed"></div>
+                        <div class="light yellow" id="eastYellow"></div>
+                        <div class="light green" id="eastGreen"></div>
+                    </div>
+                    
+                    <div class="traffic-light light-south" id="southLight">
+                        <div class="light red" id="southRed"></div>
+                        <div class="light yellow" id="southYellow"></div>
+                        <div class="light green" id="southGreen"></div>
+                    </div>
+                    
+                    <div class="traffic-light light-west" id="westLight">
+                        <div class="light red" id="westRed"></div>
+                        <div class="light yellow" id="westYellow"></div>
+                        <div class="light green" id="westGreen"></div>
+                    </div>
+                    
+                    <div class="timer timer-north" id="timerNorth">--</div>
+                    <div class="timer timer-east" id="timerEast">--</div>
+                    <div class="timer timer-south" id="timerSouth">--</div>
+                    <div class="timer timer-west" id="timerWest">--</div>
+                    
+                    <div id="vehicles"></div>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                <div class="panel-title">
+                    <span>📊</span> Live Statistics
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalVehicles">0</div>
+                        <div class="stat-label">Total Vehicles</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="processedVehicles">0</div>
+                        <div class="stat-label">Processed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="activeSignal">--</div>
+                        <div class="stat-label">Active Signal</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="timeRemaining">0s</div>
+                        <div class="stat-label">Time Left</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid" style="margin-bottom: 15px;">
+                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(255,0,0,0.2), rgba(200,0,0,0.3));">
+                        <div class="stat-value" id="emergencyActive">NO</div>
+                        <div class="stat-label">Emergency Mode</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, rgba(255,0,0,0.2), rgba(200,0,0,0.3));">
+                        <div class="stat-value" id="emergencyRoadDisplay">--</div>
+                        <div class="stat-label">Emergency Road</div>
+                    </div>
+                </div>
+
+                <div class="panel-title" style="margin-top: 15px;">
+                    <span>📈</span> Traffic Density
+                </div>
+
+                <div class="density-item">
+                    <div class="density-header">
+                        <span>North Road</span>
+                        <span id="northDensity">0</span>
+                    </div>
+                    <div class="density-bar-container">
+                        <div class="density-bar bar-north" id="northBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="density-item">
+                    <div class="density-header">
+                        <span>East Road</span>
+                        <span id="eastDensity">0</span>
+                    </div>
+                    <div class="density-bar-container">
+                        <div class="density-bar bar-east" id="eastBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="density-item">
+                    <div class="density-header">
+                        <span>South Road</span>
+                        <span id="southDensity">0</span>
+                    </div>
+                    <div class="density-bar-container">
+                        <div class="density-bar bar-south" id="southBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="density-item">
+                    <div class="density-header">
+                        <span>West Road</span>
+                        <span id="westDensity">0</span>
+                    </div>
+                    <div class="density-bar-container">
+                        <div class="density-bar bar-west" id="westBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; padding: 15px; background: rgba(0, 0, 0, 0.3); border-radius: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <div class="dot" id="backendDot"></div>
+                        <span>Backend: <span id="backendStatus">Checking...</span></span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #8a9bb5;">
+                        Last AI Update: <span id="lastUpdate">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>⚡ Smart Traffic AI System · 3 seconds per vehicle · Clockwise flow: N → E → S → W</p>
+            <p style="margin-top: 5px; opacity: 0.7;">© 2026 · Government of Tamilnadu Smart City Initiative</p>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // ===============================
+        // SIMULATION STATE
+        // ===============================
+        const state = {
+            backend: {
+                north: 0,
+                east: 0,
+                south: 0,
+                west: 0,
+                timestamp: Date.now()
+            },
+            
+            snapshot: {
+                north: 0,
+                east: 0,
+                south: 0,
+                west: 0,
+                captured: false,
+                timestamp: null
+            },
+            
+            // Clockwise order: North → East → South → West → North
+            clockwiseOrder: ['north', 'east', 'south', 'west'],
+            currentCycleIndex: 0,
+            
+            simulation: {
+                isRunning: false,
+                activeRoad: null,
+                timeRemaining: 0,
+                totalVehicles: 0,
+                processedVehicles: 0,
+                vehicles: [],
+                vehicleIntervals: [],
+                activeVehicles: new Set()
+            },
+            
+            emergency: {
+                active: false,
+                road: null,
+                startTime: null,
+                timeoutId: null,
+                previousState: null,
+                previousCycleIndex: 0
+            },
+            
+            config: {
+                vehicleTime: 3,
+                yellowTime: 5,
+                speed: 1,
+                emergencyDuration: 15000
+            },
+            
+            connection: {
+                backendConnected: false,
+                lastSuccessfulFetch: null
+            }
+        };
+
+        const vehiclesContainer = document.getElementById('vehicles');
+        const notification = document.getElementById('notification');
+        const intersection = document.getElementById('intersection');
+
+        // ===============================
+        // INITIALIZATION
+        // ===============================
+        function init() {
+            createParticles();
+            resetAllLights();
+            showNotification('🚦 System Ready. Connecting to backend...', 'info');
+            startBackendPolling();
+            fetchBackendData();
+        }
+
+        function createParticles() {
+            const particles = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 10 + 's';
+                particle.style.animationDuration = 10 + Math.random() * 10 + 's';
+                particles.appendChild(particle);
+            }
+        }
+
+        function resetAllLights() {
+            document.querySelectorAll('.light').forEach(light => {
+                light.classList.remove('active');
+            });
+            document.getElementById('northRed').classList.add('active');
+            document.getElementById('eastRed').classList.add('active');
+            document.getElementById('southRed').classList.add('active');
+            document.getElementById('westRed').classList.add('active');
+            
+            document.getElementById('cycleN').classList.remove('active');
+            document.getElementById('cycleE').classList.remove('active');
+            document.getElementById('cycleS').classList.remove('active');
+            document.getElementById('cycleW').classList.remove('active');
+        }
+
+        // ===============================
+        // BACKEND CONNECTION
+        // ===============================
+        async function fetchBackendData() {
+            try {
+                const response = await fetch('http://localhost:5000/traffic', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                
+                state.connection.backendConnected = true;
+                document.getElementById('backendDot').style.background = '#00ff00';
+                document.getElementById('backendStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').textContent = 'Backend Connected';
+                document.getElementById('statusDot').style.background = '#00ff00';
+                
+                state.backend = {
+                    north: data.north || 0,
+                    east: data.east || 0,
+                    south: data.south || 0,
+                    west: data.west || 0,
+                    timestamp: Date.now()
+                };
+                
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = 
+                    now.getHours().toString().padStart(2,'0') + ':' +
+                    now.getMinutes().toString().padStart(2,'0') + ':' +
+                    now.getSeconds().toString().padStart(2,'0');
+                
+                updateLiveDensity();
+                
+                if (!state.snapshot.captured && !state.emergency.active) {
+                    document.getElementById('snapshotNorth').textContent = state.backend.north;
+                    document.getElementById('snapshotEast').textContent = state.backend.east;
+                    document.getElementById('snapshotSouth').textContent = state.backend.south;
+                    document.getElementById('snapshotWest').textContent = state.backend.west;
+                }
+                
+                return true;
+                
+            } catch (error) {
+                state.connection.backendConnected = false;
+                document.getElementById('backendDot').style.background = '#ff0000';
+                document.getElementById('backendStatus').textContent = 'Disconnected';
+                document.getElementById('connectionStatus').textContent = 'Backend Disconnected';
+                document.getElementById('statusDot').style.background = '#ff0000';
+                
+                // Fallback to mock data
+                state.backend = {
+                    north: Math.floor(Math.random() * 25) + 5,
+                    east: Math.floor(Math.random() * 20) + 3,
+                    south: Math.floor(Math.random() * 18) + 2,
+                    west: Math.floor(Math.random() * 22) + 4,
+                    timestamp: Date.now()
+                };
+                
+                updateLiveDensity();
+                
+                if (!state.snapshot.captured) {
+                    document.getElementById('snapshotNorth').textContent = state.backend.north;
+                    document.getElementById('snapshotEast').textContent = state.backend.east;
+                    document.getElementById('snapshotSouth').textContent = state.backend.south;
+                    document.getElementById('snapshotWest').textContent = state.backend.west;
+                }
+                
+                return false;
+            }
+        }
+
+        function startBackendPolling() {
+            fetchBackendData();
+            setInterval(fetchBackendData, 2000);
+        }
+
+        function updateLiveDensity() {
+            document.getElementById('northDensity').textContent = state.backend.north;
+            document.getElementById('eastDensity').textContent = state.backend.east;
+            document.getElementById('southDensity').textContent = state.backend.south;
+            document.getElementById('westDensity').textContent = state.backend.west;
+            
+            document.getElementById('northBar').style.width = Math.min(100, (state.backend.north / 30) * 100) + '%';
+            document.getElementById('eastBar').style.width = Math.min(100, (state.backend.east / 30) * 100) + '%';
+            document.getElementById('southBar').style.width = Math.min(100, (state.backend.south / 30) * 100) + '%';
+            document.getElementById('westBar').style.width = Math.min(100, (state.backend.west / 30) * 100) + '%';
+            
+            document.getElementById('totalVehicles').textContent = 
+                state.backend.north + state.backend.east + state.backend.south + state.backend.west;
+        }
+
+        // ===============================
+        // EMERGENCY FUNCTION - FIXED
+        // ===============================
+        function triggerEmergency() {
+            if (state.emergency.active) {
+                showNotification('⚠️ Emergency already active!', 'warning');
+                return;
+            }
+            
+            const road = document.getElementById('emergencyRoad').value;
+            
+            if (state.emergency.timeoutId) {
+                clearTimeout(state.emergency.timeoutId);
+            }
+            
+            // Save current simulation state
+            state.emergency.previousState = {
+                activeRoad: state.simulation.activeRoad,
+                timeRemaining: state.simulation.timeRemaining,
+                isRunning: state.simulation.isRunning,
+                snapshot: {...state.snapshot},
+                currentCycleIndex: state.currentCycleIndex
+            };
+            
+            stopAllVehicles();
+            state.simulation.isRunning = false;
+            
+            state.emergency.active = true;
+            state.emergency.road = road;
+            state.emergency.startTime = Date.now();
+            
+            document.getElementById('emergencyActive').textContent = 'ACTIVE';
+            document.getElementById('emergencyActive').style.color = '#ff0000';
+            document.getElementById('emergencyRoadDisplay').textContent = road.toUpperCase();
+            
+            intersection.classList.add('emergency-active');
+            
+            resetAllLights();
+            
+            switch(road) {
+                case 'north':
+                    document.getElementById('northRed').classList.remove('active');
+                    document.getElementById('northGreen').classList.add('active');
+                    break;
+                case 'east':
+                    document.getElementById('eastRed').classList.remove('active');
+                    document.getElementById('eastGreen').classList.add('active');
+                    break;
+                case 'south':
+                    document.getElementById('southRed').classList.remove('active');
+                    document.getElementById('southGreen').classList.add('active');
+                    break;
+                case 'west':
+                    document.getElementById('westRed').classList.remove('active');
+                    document.getElementById('westGreen').classList.add('active');
+                    break;
+            }
+            
+            document.getElementById('timerNorth').textContent = road === 'north' ? 'PRIORITY' : 'RED';
+            document.getElementById('timerEast').textContent = road === 'east' ? 'PRIORITY' : 'RED';
+            document.getElementById('timerSouth').textContent = road === 'south' ? 'PRIORITY' : 'RED';
+            document.getElementById('timerWest').textContent = road === 'west' ? 'PRIORITY' : 'RED';
+            
+            createEmergencyVehicle(road);
+            
+            showNotification(`🚨 EMERGENCY! ${road.toUpperCase()} road has priority.`, 'error');
+            
+            state.emergency.timeoutId = setTimeout(() => {
+                endEmergency();
+            }, state.config.emergencyDuration);
+        }
+
+        function endEmergency() {
+            if (!state.emergency.active) return;
+            
+            if (state.emergency.timeoutId) {
+                clearTimeout(state.emergency.timeoutId);
+                state.emergency.timeoutId = null;
+            }
+            
+            stopAllVehicles();
+            
+            state.emergency.active = false;
+            intersection.classList.remove('emergency-active');
+            
+            document.getElementById('emergencyActive').textContent = 'NO';
+            document.getElementById('emergencyActive').style.color = '#00ffff';
+            document.getElementById('emergencyRoadDisplay').textContent = '--';
+            
+            ['timerNorth', 'timerEast', 'timerSouth', 'timerWest'].forEach(id => {
+                document.getElementById(id).textContent = '--';
+            });
+            
+            showNotification('✅ Emergency cleared. Resuming clockwise flow.', 'success');
+            
+            // Restore previous simulation state and continue clockwise flow
+            if (state.emergency.previousState && state.emergency.previousState.snapshot.captured) {
+                state.snapshot = {...state.emergency.previousState.snapshot};
+                state.currentCycleIndex = state.emergency.previousState.currentCycleIndex;
+                state.simulation.activeRoad = state.clockwiseOrder[state.currentCycleIndex];
+                state.simulation.timeRemaining = state.snapshot[state.simulation.activeRoad] * state.config.vehicleTime;
+                state.simulation.isRunning = true;
+                
+                setSignalForRoad(state.simulation.activeRoad);
+                startCountdown(state.simulation.timeRemaining, state.simulation.activeRoad);
+            }
+        }
+
+        function createEmergencyVehicle(road) {
+            const vehicleId = 'emergency_' + Date.now() + '_' + Math.random();
+            const vehicle = document.createElement('div');
+            vehicle.id = vehicleId;
+            vehicle.className = 'vehicle emergency-vehicle';
+            vehicle.innerHTML = '🚑';
+            vehicle.style.fontSize = '25px';
+            vehicle.style.display = 'flex';
+            vehicle.style.alignItems = 'center';
+            vehicle.style.justifyContent = 'center';
+            vehicle.style.color = 'white';
+            
+            const positions = {
+                north: { left: '50%', top: '0%' },
+                east: { left: '100%', top: '50%' },
+                south: { left: '50%', top: '100%' },
+                west: { left: '0%', top: '50%' }
+            };
+            
+            vehicle.style.left = positions[road].left;
+            vehicle.style.top = positions[road].top;
+            vehicle.style.transform = 'translate(-50%, -50%)';
+            
+            vehiclesContainer.appendChild(vehicle);
+            state.simulation.activeVehicles.add(vehicleId);
+            
+            animateEmergencyVehicle(vehicle, road, vehicleId);
+        }
+
+        function animateEmergencyVehicle(vehicle, road, vehicleId) {
+            const speed = 1.5 * state.config.speed;
+            let pos = { 
+                left: parseFloat(vehicle.style.left), 
+                top: parseFloat(vehicle.style.top) 
+            };
+            
+            const interval = setInterval(() => {
+                if (!state.emergency.active) {
+                    clearInterval(interval);
+                    if (vehicle.parentNode) {
+                        vehicle.remove();
+                        state.simulation.activeVehicles.delete(vehicleId);
+                    }
+                    return;
+                }
+                
+                switch(road) {
+                    case 'north': pos.top += speed; break;
+                    case 'east': pos.left -= speed; break;
+                    case 'south': pos.top -= speed; break;
+                    case 'west': pos.left += speed; break;
+                }
+                
+                vehicle.style.left = pos.left + '%';
+                vehicle.style.top = pos.top + '%';
+                
+                if (pos.top < -5 || pos.top > 105 || pos.left < -5 || pos.left > 105) {
+                    clearInterval(interval);
+                    if (vehicle.parentNode) {
+                        vehicle.remove();
+                        state.simulation.activeVehicles.delete(vehicleId);
+                    }
+                }
+            }, 50);
+            
+            state.simulation.vehicleIntervals.push(interval);
+        }
+
+        function stopAllVehicles() {
+            state.simulation.vehicleIntervals.forEach(interval => {
+                clearInterval(interval);
+            });
+            state.simulation.vehicleIntervals = [];
+            vehiclesContainer.innerHTML = '';
+            state.simulation.activeVehicles.clear();
+        }
+
+        // ===============================
+        // CAPTURE SNAPSHOT & START CLOCKWISE FLOW
+        // ===============================
+        function captureAndStart() {
+            if (state.emergency.active) {
+                showNotification('⚠️ Emergency in progress! Wait for it to clear.', 'warning');
+                return;
+            }
+            
+            stopAllVehicles();
+            
+            state.snapshot = {
+                north: state.backend.north,
+                east: state.backend.east,
+                south: state.backend.south,
+                west: state.backend.west,
+                captured: true,
+                timestamp: Date.now()
+            };
+            
+            document.getElementById('snapshotNorth').textContent = state.snapshot.north;
+            document.getElementById('snapshotEast').textContent = state.snapshot.east;
+            document.getElementById('snapshotSouth').textContent = state.snapshot.south;
+            document.getElementById('snapshotWest').textContent = state.snapshot.west;
+            
+            const time = new Date();
+            document.getElementById('snapshotTime').textContent = 
+                time.getHours().toString().padStart(2,'0') + ':' + 
+                time.getMinutes().toString().padStart(2,'0');
+            
+            // Find road with highest vehicle count to start
+            const roads = [
+                { name: 'north', count: state.snapshot.north },
+                { name: 'east', count: state.snapshot.east },
+                { name: 'south', count: state.snapshot.south },
+                { name: 'west', count: state.snapshot.west }
+            ];
+            
+            const highest = roads.reduce((max, road) => road.count > max.count ? road : max);
+            state.currentCycleIndex = state.clockwiseOrder.indexOf(highest.name);
+            state.simulation.activeRoad = highest.name;
+            state.simulation.timeRemaining = highest.count * state.config.vehicleTime;
+            
+            document.getElementById('activeRoad').textContent = 
+                highest.name.toUpperCase() + ' (' + highest.count + ' veh)';
+            
+            showNotification(
+                `📸 Snapshot captured! Starting clockwise flow from ${highest.name.toUpperCase()}.`, 
+                'success'
+            );
+            
+            resetAllLights();
+            setSignalForRoad(highest.name);
+            
+            state.simulation.isRunning = true;
+            startCountdown(state.simulation.timeRemaining, highest.name);
+        }
+
+        // ===============================
+        // SET SIGNAL FOR ROAD
+        // ===============================
+        function setSignalForRoad(road) {
+            document.getElementById('northRed').classList.add('active');
+            document.getElementById('eastRed').classList.add('active');
+            document.getElementById('southRed').classList.add('active');
+            document.getElementById('westRed').classList.add('active');
+            
+            document.getElementById('northGreen').classList.remove('active');
+            document.getElementById('eastGreen').classList.remove('active');
+            document.getElementById('southGreen').classList.remove('active');
+            document.getElementById('westGreen').classList.remove('active');
+            document.getElementById('northYellow').classList.remove('active');
+            document.getElementById('eastYellow').classList.remove('active');
+            document.getElementById('southYellow').classList.remove('active');
+            document.getElementById('westYellow').classList.remove('active');
+            
+            document.getElementById('cycleN').classList.remove('active');
+            document.getElementById('cycleE').classList.remove('active');
+            document.getElementById('cycleS').classList.remove('active');
+            document.getElementById('cycleW').classList.remove('active');
+            
+            switch(road) {
+                case 'north':
+                    document.getElementById('northRed').classList.remove('active');
+                    document.getElementById('northGreen').classList.add('active');
+                    document.getElementById('activeSignal').textContent = 'N';
+                    document.getElementById('cycleN').classList.add('active');
+                    break;
+                case 'east':
+                    document.getElementById('eastRed').classList.remove('active');
+                    document.getElementById('eastGreen').classList.add('active');
+                    document.getElementById('activeSignal').textContent = 'E';
+                    document.getElementById('cycleE').classList.add('active');
+                    break;
+                case 'south':
+                    document.getElementById('southRed').classList.remove('active');
+                    document.getElementById('southGreen').classList.add('active');
+                    document.getElementById('activeSignal').textContent = 'S';
+                    document.getElementById('cycleS').classList.add('active');
+                    break;
+                case 'west':
+                    document.getElementById('westRed').classList.remove('active');
+                    document.getElementById('westGreen').classList.add('active');
+                    document.getElementById('activeSignal').textContent = 'W';
+                    document.getElementById('cycleW').classList.add('active');
+                    break;
+            }
+            
+            startVehicleMovement(road);
+        }
+
+        function setYellowPhase(road) {
+            switch(road) {
+                case 'north':
+                    document.getElementById('northGreen').classList.remove('active');
+                    document.getElementById('northYellow').classList.add('active');
+                    break;
+                case 'east':
+                    document.getElementById('eastGreen').classList.remove('active');
+                    document.getElementById('eastYellow').classList.add('active');
+                    break;
+                case 'south':
+                    document.getElementById('southGreen').classList.remove('active');
+                    document.getElementById('southYellow').classList.add('active');
+                    break;
+                case 'west':
+                    document.getElementById('westGreen').classList.remove('active');
+                    document.getElementById('westYellow').classList.add('active');
+                    break;
+            }
+            
+            showNotification(`⚠️ ${road.toUpperCase()} road YELLOW - Next: ${getNextRoad(road).toUpperCase()}`, 'warning');
+        }
+
+        function getNextRoad(currentRoad) {
+            const currentIndex = state.clockwiseOrder.indexOf(currentRoad);
+            const nextIndex = (currentIndex + 1) % 4;
+            return state.clockwiseOrder[nextIndex];
+        }
+
+        function startCountdown(initialTime, activeRoad) {
+            let timeLeft = initialTime;
+            let yellowTriggered = false;
+            
+            updateTimers(activeRoad, timeLeft);
+            
+            const interval = setInterval(() => {
+                if (!state.simulation.isRunning || state.emergency.active) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                timeLeft -= 1 / state.config.speed;
+                state.simulation.timeRemaining = Math.ceil(timeLeft);
+                document.getElementById('timeRemaining').textContent = Math.ceil(timeLeft) + 's';
+                
+                updateTimers(activeRoad, timeLeft);
+                
+                if (timeLeft <= state.config.yellowTime && timeLeft > 0 && !yellowTriggered) {
+                    setYellowPhase(activeRoad);
+                    yellowTriggered = true;
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    moveToNextRoad(activeRoad);
+                }
+                
+            }, 1000 / state.config.speed);
+            
+            state.simulation.vehicleIntervals.push(interval);
+        }
+
+        function updateTimers(activeRoad, timeLeft) {
+            const timers = {
+                north: document.getElementById('timerNorth'),
+                east: document.getElementById('timerEast'),
+                south: document.getElementById('timerSouth'),
+                west: document.getElementById('timerWest')
+            };
+            
+            Object.keys(timers).forEach(road => {
+                if (road === activeRoad) {
+                    timers[road].textContent = Math.ceil(timeLeft) + 's';
+                } else {
+                    timers[road].textContent = 'RED';
+                }
+            });
+        }
+
+        // ===============================
+        // CLOCKWISE FLOW - N → E → S → W → N
+        // ===============================
+        function moveToNextRoad(currentRoad) {
+            if (state.emergency.active) return;
+            
+            // Get next road in clockwise order
+            const currentIndex = state.clockwiseOrder.indexOf(currentRoad);
+            const nextIndex = (currentIndex + 1) % 4;
+            const nextRoad = state.clockwiseOrder[nextIndex];
+            
+            state.currentCycleIndex = nextIndex;
+            state.simulation.activeRoad = nextRoad;
+            state.simulation.timeRemaining = state.snapshot[nextRoad] * state.config.vehicleTime;
+            
+            document.getElementById('activeRoad').textContent = 
+                nextRoad.toUpperCase() + ' (' + state.snapshot[nextRoad] + ' veh)';
+            
+            showNotification(`🔄 Clockwise flow: ${currentRoad.toUpperCase()} → ${nextRoad.toUpperCase()}`, 'info');
+            
+            setSignalForRoad(nextRoad);
+            startCountdown(state.simulation.timeRemaining, nextRoad);
+        }
+
+        // ===============================
+        // VEHICLE MOVEMENT
+        // ===============================
+        function startVehicleMovement(road) {
+            if (!state.snapshot.captured || state.emergency.active) return;
+            
+            const count = state.snapshot[road];
+            
+            for (let i = 0; i < Math.min(count, 8); i++) {
+                setTimeout(() => {
+                    if (state.simulation.isRunning && !state.emergency.active && 
+                        state.simulation.activeRoad === road) {
+                        createVehicle(road);
+                    }
+                }, i * 1000 / state.config.speed);
+            }
+        }
+
+        function createVehicle(road) {
+            const vehicleId = 'vehicle_' + Date.now() + '_' + Math.random() + '_' + road;
+            const vehicle = document.createElement('div');
+            const types = ['car', 'truck', 'bus'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            vehicle.id = vehicleId;
+            vehicle.className = `vehicle ${type}`;
+            vehicle.setAttribute('data-road', road);
+            vehicle.setAttribute('data-created', Date.now());
+            
+            const positions = {
+                north: { left: '50%', top: '0%' },
+                east: { left: '100%', top: '50%' },
+                south: { left: '50%', top: '100%' },
+                west: { left: '0%', top: '50%' }
+            };
+            
+            vehicle.style.left = positions[road].left;
+            vehicle.style.top = positions[road].top;
+            vehicle.style.transform = 'translate(-50%, -50%)';
+            
+            vehiclesContainer.appendChild(vehicle);
+            state.simulation.totalVehicles++;
+            state.simulation.activeVehicles.add(vehicleId);
+            document.getElementById('totalVehicles').textContent = state.simulation.totalVehicles;
+            
+            animateVehicle(vehicle, road, vehicleId);
+        }
+
+        function animateVehicle(vehicle, road, vehicleId) {
+            const speed = 0.5 * state.config.speed;
+            let pos = { 
+                left: parseFloat(vehicle.style.left), 
+                top: parseFloat(vehicle.style.top) 
+            };
+            
+            const interval = setInterval(() => {
+                if (state.emergency.active || !state.simulation.isRunning) {
+                    clearInterval(interval);
+                    if (vehicle.parentNode) {
+                        vehicle.remove();
+                        state.simulation.activeVehicles.delete(vehicleId);
+                    }
+                    return;
+                }
+                
+                switch(road) {
+                    case 'north': pos.top += speed; break;
+                    case 'east': pos.left -= speed; break;
+                    case 'south': pos.top -= speed; break;
+                    case 'west': pos.left += speed; break;
+                }
+                
+                vehicle.style.left = pos.left + '%';
+                vehicle.style.top = pos.top + '%';
+                
+                if (pos.top < -10 || pos.top > 110 || pos.left < -10 || pos.left > 110) {
+                    clearInterval(interval);
+                    if (vehicle.parentNode) {
+                        vehicle.remove();
+                        state.simulation.activeVehicles.delete(vehicleId);
+                        state.simulation.processedVehicles++;
+                        document.getElementById('processedVehicles').textContent = state.simulation.processedVehicles;
+                    }
+                }
+                
+            }, 50);
+            
+            state.simulation.vehicleIntervals.push(interval);
+        }
+
+        // ===============================
+        // CONTROL FUNCTIONS
+        // ===============================
+        function pauseSimulation() {
+            if (state.emergency.active) {
+                showNotification('⚠️ Cannot pause during emergency!', 'warning');
+                return;
+            }
+            state.simulation.isRunning = false;
+            stopAllVehicles();
+            showNotification('⏸ Simulation paused', 'warning');
+        }
+
+        function resetSimulation() {
+            if (state.emergency.active) {
+                if (state.emergency.timeoutId) {
+                    clearTimeout(state.emergency.timeoutId);
+                    state.emergency.timeoutId = null;
+                }
+                state.emergency.active = false;
+                intersection.classList.remove('emergency-active');
+                document.getElementById('emergencyActive').textContent = 'NO';
+                document.getElementById('emergencyActive').style.color = '#00ffff';
+            }
+            
+            state.simulation.isRunning = false;
+            state.snapshot.captured = false;
+            state.currentCycleIndex = 0;
+            
+            stopAllVehicles();
+            
+            document.getElementById('snapshotNorth').textContent = '0';
+            document.getElementById('snapshotEast').textContent = '0';
+            document.getElementById('snapshotSouth').textContent = '0';
+            document.getElementById('snapshotWest').textContent = '0';
+            document.getElementById('snapshotTime').textContent = '--:--';
+            document.getElementById('activeRoad').textContent = '--';
+            document.getElementById('timeRemaining').textContent = '0s';
+            document.getElementById('activeSignal').textContent = '--';
+            document.getElementById('processedVehicles').textContent = '0';
+            document.getElementById('emergencyActive').textContent = 'NO';
+            document.getElementById('emergencyRoadDisplay').textContent = '--';
+            
+            resetAllLights();
+            
+            ['timerNorth', 'timerEast', 'timerSouth', 'timerWest'].forEach(id => {
+                document.getElementById(id).textContent = '--';
+            });
+            
+            showNotification('🔄 System reset. Ready for new snapshot.', 'success');
+        }
+
+        function showNotification(message, type = 'info') {
+            notification.textContent = message;
+            notification.className = 'notification show ' + type;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        document.getElementById('simSpeed').addEventListener('input', (e) => {
+            state.config.speed = parseFloat(e.target.value);
+        });
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
